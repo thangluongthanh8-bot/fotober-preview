@@ -1,16 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, RotateCcw, Eye, X, ZoomIn, ZoomOut, Download } from 'lucide-react';
+import { Check, RotateCcw, Eye, X, ZoomIn, ZoomOut, Download, Send, Loader2 } from 'lucide-react';
 
 interface ImageReviewCardProps {
     index: number;
     total: number;
     imageSrc: string;
     imageName?: string;
+    fileId: string;
     isAccepted?: boolean;
+    hasRevision?: boolean;
     feedback?: string;
-    updateOutputOrder?: () => Promise<void>;
+    jobCode?: string;
+    salesEmail?: string;
+    onAccept?: (fileId: string) => Promise<void>;
+    onRequestRevision?: (fileId: string, comment: string) => Promise<void>;
 }
 
 export default function ImageReviewCard({
@@ -18,17 +23,82 @@ export default function ImageReviewCard({
     total,
     imageSrc,
     imageName,
-    isAccepted,
+    fileId,
+    isAccepted = false,
+    hasRevision = false,
     feedback,
-    updateOutputOrder,
+    jobCode = '',
+    salesEmail = '',
+    onAccept,
+    onRequestRevision,
 }: ImageReviewCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [imageError, setImageError] = useState(false);
 
+    // Revision form state
+    const [showRevisionInput, setShowRevisionInput] = useState(false);
+    const [revisionComment, setRevisionComment] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [actionStatus, setActionStatus] = useState<'idle' | 'accepted' | 'revision'>('idle');
+
+    // Initialize status based on props
+    useState(() => {
+        if (isAccepted) setActionStatus('accepted');
+        else if (hasRevision || feedback) setActionStatus('revision');
+    });
+
     const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 3));
     const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5));
     const resetZoom = () => setZoom(1);
+
+    const handleAccept = async () => {
+        if (actionStatus !== 'idle' || isSubmitting) return;
+
+        setIsSubmitting(true);
+        try {
+            if (onAccept) {
+                await onAccept(fileId);
+            }
+            setActionStatus('accepted');
+            setShowRevisionInput(false);
+        } catch (error) {
+            console.error('Failed to accept:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRevisionClick = () => {
+        if (actionStatus === 'accepted') return;
+        setShowRevisionInput(true);
+    };
+
+    const handleSubmitRevision = async () => {
+        if (!revisionComment.trim() || isSubmitting) return;
+
+        setIsSubmitting(true);
+        try {
+            if (onRequestRevision) {
+                await onRequestRevision(fileId, revisionComment.trim());
+            }
+            setActionStatus('revision');
+            setShowRevisionInput(false);
+        } catch (error) {
+            console.error('Failed to submit revision:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCancelRevision = () => {
+        setShowRevisionInput(false);
+        setRevisionComment('');
+    };
+
+    // Determine button states
+    const isAcceptDisabled = actionStatus === 'accepted' || actionStatus === 'revision' || isSubmitting;
+    const isRevisionDisabled = actionStatus === 'accepted' || isSubmitting;
 
     return (
         <>
@@ -75,29 +145,92 @@ export default function ImageReviewCard({
                             View Image
                         </button>
 
-                        {isAccepted ? (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-[#6caddf] text-white rounded cursor-default font-medium text-sm">
+                        {/* Accept Button */}
+                        {actionStatus === 'accepted' ? (
+                            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded cursor-default font-medium text-sm">
                                 <Check size={16} />
                                 Accepted
                             </button>
                         ) : (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-[#6caddf] text-white rounded hover:bg-[#5a9bc9] transition-colors font-medium text-sm">
-                                <Check size={16} />
+                            <button
+                                onClick={handleAccept}
+                                disabled={isAcceptDisabled}
+                                className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isAcceptDisabled
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-[#6caddf] text-white hover:bg-[#5a9bc9]'
+                                    }`}
+                            >
+                                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                 Accept Image
                             </button>
                         )}
 
-                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#0088cc] text-[#0088cc] rounded hover:bg-blue-50 transition-colors font-medium text-sm">
-                            <RotateCcw size={16} />
-                            Request revision
-                        </button>
+                        {/* Request Revision Button */}
+                        {actionStatus === 'revision' ? (
+                            <button className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded cursor-default font-medium text-sm">
+                                <RotateCcw size={16} />
+                                Revision Requested
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleRevisionClick}
+                                disabled={isRevisionDisabled}
+                                className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isRevisionDisabled
+                                        ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white border border-[#0088cc] text-[#0088cc] hover:bg-blue-50'
+                                    }`}
+                            >
+                                <RotateCcw size={16} />
+                                Request revision
+                            </button>
+                        )}
                     </div>
 
-                    {feedback && (
+                    {/* Revision Input Form */}
+                    {showRevisionInput && (
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Please describe what needs to be revised:
+                            </label>
+                            <textarea
+                                value={revisionComment}
+                                onChange={(e) => setRevisionComment(e.target.value)}
+                                placeholder="Enter your revision request..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                rows={3}
+                                maxLength={500}
+                            />
+                            <div className="flex justify-between items-center mt-3">
+                                <span className="text-xs text-gray-500">{revisionComment.length}/500</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleCancelRevision}
+                                        className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSubmitRevision}
+                                        disabled={!revisionComment.trim() || isSubmitting}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm rounded font-medium transition-colors ${!revisionComment.trim() || isSubmitting
+                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                : 'bg-[#0088cc] text-white hover:bg-[#0077b3]'
+                                            }`}
+                                    >
+                                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                        Submit Request
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Previous Feedback Display */}
+                    {(feedback || actionStatus === 'revision') && (
                         <div>
                             <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm max-w-md">
                                 <div className="text-sm text-gray-800">
-                                    <span className="font-semibold">Latest Revision request:</span> {feedback}
+                                    <span className="font-semibold">Latest Revision request:</span> {feedback || revisionComment}
                                 </div>
                                 <div className="absolute -top-2 left-8 w-4 h-4 bg-white border-t border-l border-gray-200 transform rotate-45"></div>
                             </div>
