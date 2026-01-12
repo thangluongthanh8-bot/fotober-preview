@@ -1,21 +1,16 @@
-import React from "react";
-import VideoPlayer from "./VideoPlayer";
-import { Check, RotateCcw, Eye } from "lucide-react";
+import VideoPlayerss from "./VideoPlayer";
+import { Check, RotateCcw, Eye, X } from "lucide-react";
+import { useState } from "react";
 
-interface VideoReviewCardProps {
-  index: number;
-  total: number;
-  videoSrc: string;
-  isAccepted?: boolean;
-  feedback?: string;
-}
+export default function VideoReviewCard({ index, total, videoSrc, isAccepted, feedback, updateOutputOrder}:{ index:number; total:number; videoSrc:string; isAccepted?:boolean; feedback?:string , updateOutputOrder: () => Promise<void>}) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-export default function VideoReviewCard({ index, total, videoSrc, isAccepted, feedback }: VideoReviewCardProps) {
   return (
+    <>
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row gap-8">
       {/* Left: Video Player */}
-      <div className="w-full md:w-[300px] flex-shrink-0">
-        <VideoPlayer src={videoSrc} />
+      <div className="w-full h-full md:w-[700px] md:h-[500px] ">
+        <VideoPlayerss src={videoSrc} />
       </div>
 
       {/* Right: Details */}
@@ -25,7 +20,10 @@ export default function VideoReviewCard({ index, total, videoSrc, isAccepted, fe
         </div>
 
         <div className="flex flex-wrap gap-3 mb-6">
-          <button className="flex items-center gap-2 px-4 py-2 bg-[#0088cc] text-white rounded hover:bg-[#0077b3] transition-colors font-medium text-sm">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0088cc] text-white rounded hover:bg-[#0077b3] transition-colors font-medium text-sm"
+          >
             <Eye size={16} />
             View Video
           </button>
@@ -49,7 +47,7 @@ export default function VideoReviewCard({ index, total, videoSrc, isAccepted, fe
         </div>
 
         {feedback && (
-          <div className="mt-auto">
+          <div >
             <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm max-w-md">
                 <div className="text-sm text-gray-800">
                     <span className="font-semibold">Latest Revision request:</span> {feedback}
@@ -61,5 +59,31 @@ export default function VideoReviewCard({ index, total, videoSrc, isAccepted, fe
         )}
       </div>
     </div>
+
+    {/* Modal Overlay */}
+    {isModalOpen && (
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8"
+            onClick={() => setIsModalOpen(false)}
+        >
+            <div 
+                className="relative w-full max-w-7xl max-h-[90vh] flex flex-col justify-center bg-black rounded-lg overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-full hover:bg-white/20 transition-all border border-white/10"
+                >
+                    <X size={24} />
+                </button>
+                <div className="w-full h-full flex items-center justify-center">
+                   <div className="w-full h-full" style={{ maxHeight: '85vh' }}>
+                      <VideoPlayerss src={videoSrc} />
+                   </div>
+                </div>
+            </div>
+        </div>
+    )}
+    </>
   );
 }
