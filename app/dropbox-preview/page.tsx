@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Info, Loader2, FolderOpen, RefreshCw, CheckCircle, Mail, AlertTriangle, Copy } from "lucide-react";
+import { Loader2, FolderOpen, RefreshCw, CheckCircle, Mail, AlertTriangle, Copy } from "lucide-react";
 
 import VideoReviewCard from "../components/VideoReviewCard";
 import ImageReviewCard from "../components/ImageReviewCard";
