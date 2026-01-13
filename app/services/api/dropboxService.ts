@@ -93,7 +93,7 @@ async function getValidAccessToken(): Promise<string> {
   tokenExpiresAt = now + (data.expires_in * 1000);
   
   console.log('[Dropbox] Token refreshed successfully, expires in', data.expires_in, 'seconds');
-  return cachedAccessToken;
+  return cachedAccessToken!;
 }
 
 // ============================================================================

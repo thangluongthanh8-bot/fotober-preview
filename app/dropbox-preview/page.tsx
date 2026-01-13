@@ -334,16 +334,18 @@ export default function DropboxPreviewPage() {
                                         file.type === "Video" ? (
                                             <VideoReviewCard
                                                 key={file.id}
-                                                updateOutputOrder={async () => { }}
+                                                fileId={file.id}
                                                 index={index + 1}
                                                 total={filteredFiles.length}
                                                 videoSrc={file.url}
+                                                videoName={file.name}
                                                 isAccepted={file.accepted}
                                                 feedback={file.comment}
                                             />
                                         ) : (
                                             <ImageReviewCard
                                                 key={file.id}
+                                                fileId={file.id}
                                                 index={index + 1}
                                                 total={filteredFiles.length}
                                                 imageSrc={file.url}
