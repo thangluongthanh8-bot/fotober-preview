@@ -27,8 +27,6 @@ export default function ImageReviewCard({
     isAccepted = false,
     hasRevision = false,
     feedback,
-    jobCode = '',
-    salesEmail = '',
     onAccept,
     onRequestRevision,
 }: ImageReviewCardProps) {
@@ -99,7 +97,6 @@ export default function ImageReviewCard({
     // Determine button states
     const isAcceptDisabled = actionStatus === 'accepted' || actionStatus === 'revision' || isSubmitting;
     const isRevisionDisabled = actionStatus === 'accepted' || isSubmitting;
-
     return (
         <>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row gap-8">
@@ -156,8 +153,8 @@ export default function ImageReviewCard({
                                 onClick={handleAccept}
                                 disabled={isAcceptDisabled}
                                 className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isAcceptDisabled
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-[#6caddf] text-white hover:bg-[#5a9bc9]'
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-[#6caddf] text-white hover:bg-[#5a9bc9]'
                                     }`}
                             >
                                 {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -176,8 +173,8 @@ export default function ImageReviewCard({
                                 onClick={handleRevisionClick}
                                 disabled={isRevisionDisabled}
                                 className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isRevisionDisabled
-                                        ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white border border-[#0088cc] text-[#0088cc] hover:bg-blue-50'
+                                    ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+                                    : 'bg-white border border-[#0088cc] text-[#0088cc] hover:bg-blue-50'
                                     }`}
                             >
                                 <RotateCcw size={16} />
@@ -213,8 +210,8 @@ export default function ImageReviewCard({
                                         onClick={handleSubmitRevision}
                                         disabled={!revisionComment.trim() || isSubmitting}
                                         className={`flex items-center gap-2 px-4 py-2 text-sm rounded font-medium transition-colors ${!revisionComment.trim() || isSubmitting
-                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                : 'bg-[#0088cc] text-white hover:bg-[#0077b3]'
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-[#0088cc] text-white hover:bg-[#0077b3]'
                                             }`}
                                     >
                                         {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

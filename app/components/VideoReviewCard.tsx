@@ -13,8 +13,6 @@ interface VideoReviewCardProps {
   isAccepted?: boolean;
   hasRevision?: boolean;
   feedback?: string;
-  jobCode?: string;
-  salesEmail?: string;
   onAccept?: (fileId: string) => Promise<void>;
   onRequestRevision?: (fileId: string, comment: string) => Promise<void>;
 }
@@ -28,8 +26,6 @@ export default function VideoReviewCard({
   isAccepted = false,
   hasRevision = false,
   feedback,
-  jobCode = '',
-  salesEmail = '',
   onAccept,
   onRequestRevision,
 }: VideoReviewCardProps) {
@@ -94,7 +90,6 @@ export default function VideoReviewCard({
   // Determine button states
   const isAcceptDisabled = actionStatus === 'accepted' || actionStatus === 'revision' || isSubmitting;
   const isRevisionDisabled = actionStatus === 'accepted' || isSubmitting;
-
   return (
     <>
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row gap-8">
@@ -134,8 +129,8 @@ export default function VideoReviewCard({
                 onClick={handleAccept}
                 disabled={isAcceptDisabled}
                 className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isAcceptDisabled
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-[#6caddf] text-white hover:bg-[#5a9bc9]'
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#6caddf] text-white hover:bg-[#5a9bc9]'
                   }`}
               >
                 {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -154,8 +149,8 @@ export default function VideoReviewCard({
                 onClick={handleRevisionClick}
                 disabled={isRevisionDisabled}
                 className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-colors ${isRevisionDisabled
-                    ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-[#0088cc] text-[#0088cc] hover:bg-blue-50'
+                  ? 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-[#0088cc] text-[#0088cc] hover:bg-blue-50'
                   }`}
               >
                 <RotateCcw size={16} />
@@ -191,8 +186,8 @@ export default function VideoReviewCard({
                     onClick={handleSubmitRevision}
                     disabled={!revisionComment.trim() || isSubmitting}
                     className={`flex items-center gap-2 px-4 py-2 text-sm rounded font-medium transition-colors ${!revisionComment.trim() || isSubmitting
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-[#0088cc] text-white hover:bg-[#0077b3]'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-[#0088cc] text-white hover:bg-[#0077b3]'
                       }`}
                   >
                     {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
@@ -221,23 +216,30 @@ export default function VideoReviewCard({
       {/* Modal Overlay */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-7xl max-h-[90vh] flex flex-col justify-center bg-black rounded-lg overflow-hidden shadow-2xl"
+            className="relative w-full max-w-5xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-full hover:bg-white/20 transition-all border border-white/10"
+              className="absolute -top-12 right-0 z-50 p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all"
             >
               <X size={24} />
             </button>
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-full h-full" style={{ maxHeight: '85vh' }}>
-                <VideoPlayerss src={videoSrc} />
-              </div>
+            {/* Video with aspect ratio container */}
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ paddingBottom: '56.25%' }}>
+              <video
+                src={videoSrc}
+                controls
+                autoPlay
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}
+                className="absolute inset-0 w-full h-full object-contain"
+              />
             </div>
           </div>
         </div>

@@ -4,8 +4,6 @@ import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_KEY_API_CHAINZ;
 
-console.log("API Base URL:", API_BASE_URL);
-console.log("API Key exists:", !!API_KEY);
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

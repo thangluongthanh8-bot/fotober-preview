@@ -1,35 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client"; // Quan trọng vì ReactPlayer chạy ở client side
+"use client";
 
 import React from "react";
-import ReactPlayer from "react-player";
 
-
-
-
-const VideoPlayerss = ({ src }:{ src:string }) => {
-  
-
-
-
+const VideoPlayerss = ({ src }: { src: string }) => {
   return (
-    <div className="player-wrapper">
-      <ReactPlayer
+    <div
+      className="player-wrapper"
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <video
         src={src}
-        className="react-player"
-        playing={false}
-        controls={true}
-        // light={`/logo.webp`}
-        width="100%"
-        height="100%"
-        config={{
-          file: {
-            attributes: {
-              controlsList: "nodownload",
-              onContextMenu: (e:any) => e.preventDefault(),
-            },
-          },
-        } as any}
+        controlsList="nodownload noplaybackrate nofullscreen"
+        disablePictureInPicture
+        onContextMenu={(e) => e.preventDefault()}
+        controls
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          objectFit: 'contain'
+        }}
       />
     </div>
   );

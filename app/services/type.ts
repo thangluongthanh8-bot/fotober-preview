@@ -5,6 +5,7 @@ order_from?: string;
   note?: string;
   sale_email?: string;
   invoice_link?: string;
+  output_link?: string;
     files: {
       type: string;
       id: string;
