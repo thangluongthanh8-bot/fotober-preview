@@ -1,185 +1,165 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import VideoReviewCard from "../components/VideoReviewCard";
 import ImageReviewCard from "../components/ImageReviewCard";
-import { Info } from "lucide-react";
-// import { listVideoUrl } from "../constant";
+import { Download, Info } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import {
-    getOuputOrder,
-    postUpdateOutputOrder,
-} from "../services/api/orderService";
+import { getOuputOrder, postUpdateOutputOrder } from "../services/api/orderService";
 import { FileItem } from "../services/type";
 import { sendRevisionEmail } from "../services/api/emailService";
 import { formatTimestamp } from "../services/api/fileReviewService";
-import { DropboxFolderInfo, getDropboxFolderInfo, getFilesFromDropboxFolder } from "../services/api/dropboxService";
-import { setLocalStorage, getLocalStorage, removeLocalStorage } from "../hooks/localstorage";
-// ============================================================================
-// Types
-// ============================================================================
-
-type TabType = "video" | "image";
-
-// ============================================================================
-// Component
-// ============================================================================
+import { getFilesFromDropboxFolder } from "../services/api/dropboxService";
+import { setLocalStorage, getLocalStorage } from "../hooks/localstorage";
+import { useDevToolsBlocker } from "../hooks/useDevToolsBlocker";
+import { usePageVisibility } from "../hooks/usePageVisibility";
 
 export default function DropboxPreviewPage() {
+    const order_id = usePathname().slice(1);
     const [listOutput, setListOutput] = useState<FileItem>({ files: [] });
-    const order_id = usePathname().slice(1)
     const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
-    const imageFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'image') || [];
-    const videoFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'video') || [];
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        const localOutput = getLocalStorage("listOutput");
-        // Add null check to prevent error
+    const imageFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'image') || [];
+    const videoFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'video') || [];
 
-        if (localOutput && localOutput.job_code === order_id && localOutput.files?.length > 0) {
-            console.log('[Cache] Using cached data');
+    const [innerWidth, setInnerWidth] = useState([window.outerWidth, window.outerHeight]);
+    // const { isDevToolOpen } = useDevToolsBlocker();
+
+    // usePageVisibility();
+    useEffect(() => {
+
+        const localOutput = getLocalStorage("listOutput");
+        if (localOutput?.job_code === order_id && localOutput.files?.length > 0) {
             setListOutput(localOutput);
-            return;
         } else {
 
             fetchOutputOrder();
         }
     }, [order_id]);
-    // fetch output order detail
+
+    // fetch output order
     const fetchOutputOrder = async () => {
         try {
             const response: FileItem = await getOuputOrder(order_id);
-            console.log(response, "response");
-
-            const mockupdata = {
-                order_from: "ops",
-                job_code: "STWOJAN01001",
-                customer_code: "STWO-DRE",
-                note: "",
-                sale_email: "sunnyhelen0308@gmail.com",
-                output_link: "https://www.dropbox.com/scl/fo/px9hb4rvvbqw8bj2sj9mv/AFamZAt_rACAr4thmfKpQiw?rlkey=2x2nm3lsrumafvpr9b76io72j&st=cn4l4ric&dl=0",
-                files: [
-                    {
-                        url: "",
-                        name: "",
-                        type: "",
-                        accepted: false,
-                        comment: "",
-                        id: ""
-                    }
-                ]
-            }
-            setListOutput(mockupdata);
-            console.log(mockupdata, "mockupdata");
-            if (mockupdata.files[0].url === "" || null) {
-                handleLoadFiles(mockupdata.output_link);
+            if (response.files[0].url === "" || response.files[0].url === null) {
+                if (response.output_link) {
+                    await handleLoadFiles(response.output_link);
+                }
+            } else {
+                setListOutput(response);
+                setLocalStorage("listOutput", response);
             }
         } catch (error) {
             console.error("Failed to fetch output order:", error);
         }
     };
 
-    const updateOutputOrder = async (updatedFiles?: FileItem['files']) => {
-        try {
-            const filesToUpdate = updatedFiles || listOutput.files;
-            await postUpdateOutputOrder(order_id, filesToUpdate);
-        } catch (error) {
-            console.error("Failed to update output order:", error);
-        }
-    };
-
-    // Handle Accept action
-    const handleAccept = useCallback(async (fileId: string) => {
-        const updatedFiles = listOutput.files.map(file => {
-            if (file.id === fileId) {
-                return { ...file, accepted: true };
-            }
-            return file;
-        });
-
-        setListOutput(prev => ({ ...prev, files: updatedFiles }));
-        await updateOutputOrder(updatedFiles);
-        console.log(`[Review] File ${fileId} accepted`);
-    }, [listOutput?.files, order_id]);
-
-    // Handle Request Revision action
-    const handleRequestRevision = useCallback(async (fileId: string, comment: string) => {
-        const file = listOutput?.files.find(f => f.id === fileId);
-        if (!file) return;
-
-        // Update local state
-        const updatedFiles = listOutput?.files.map(f => {
-            if (f.id === fileId) {
-                return { ...f, accepted: false, comment };
-            }
-            return f;
-        });
-
-        setListOutput(prev => ({ ...prev, files: updatedFiles }));
-
-        // Update API
-        await updateOutputOrder(updatedFiles);
-
-        // Send email notification
-        const emailData = {
-            jobCode: listOutput.job_code || 'Unknown',
-            fileName: file.name || `File ${fileId}`,
-            fileUrl: file.url,
-            comment: comment,
-            salesEmail: "grayna012@gmail.com",
-            timestamp: formatTimestamp(),
-        };
-        // const emailDataSupport = {
-        //     jobCode: listOutput.job_code || 'Unknown',
-        //     fileName: file.name || `File ${fileId}`,
-        //     fileUrl: file.url,
-        //     comment: comment,
-        //     salesEmail: 'support@fotober.com',
-        //     timestamp: formatTimestamp(),
-        // };
-        const emailResult = await sendRevisionEmail(emailData);
-        // const emailResultSupport = await sendRevisionEmail(emailDataSupport);
-
-        // if (emailResult.success && emailResultSupport.success) {
-        if (emailResult.success) {
-            console.log(`[Review] Revision request sent for file ${fileId}`);
-        } else {
-            console.error(`[Review] Failed to send revision email: ${emailResult.message} `);
-        }
-    }, [listOutput]);
-
+    // handle load files from dropbox folder
     const handleLoadFiles = async (output_link: string) => {
-        if (!output_link?.trim()) {
-            return;
-        }
+        if (!output_link?.trim()) return;
 
         setLoading(true);
-        setListOutput(listOutput);
-
         try {
-            const info = await getDropboxFolderInfo(output_link);
-
             const files = await getFilesFromDropboxFolder(output_link);
-            setListOutput(files);
-            listOutput.files = files.files;
-            setLocalStorage("listOutput", listOutput);
-            // Update counts
-            ;
-
+            setListOutput(prev => ({ ...prev, files: files.files }));
+            setLocalStorage("listOutput", { ...listOutput, files: files.files });
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load files";
+            console.error("Failed to load files:", err);
         } finally {
             setLoading(false);
         }
     };
-    const navigateToInvoice = () => {
-        window.open(listOutput.invoice_link, "_blank");
-        window.location.href = "https://ops.fotober.com"
+
+    // update output order
+    const updateOutputOrder = async (updatedFiles: FileItem['files']) => {
+        try {
+            const response = await postUpdateOutputOrder(order_id, updatedFiles);
+            return response;
+        } catch (error) {
+            console.error("Failed to update output order:", error);
+            throw error;
+        }
     };
 
+    // handle accept file
+    const handleAccept = useCallback(async (fileIndex: number) => {
+        const updatedFiles = listOutput.files.map((file, index) =>
+            index === fileIndex ? { ...file, accepted: true } : file
+        );
+        setListOutput(prev => ({ ...prev, files: updatedFiles }));
+        // Save to localStorage
+        setLocalStorage("listOutput", { ...listOutput, files: updatedFiles });
+        await updateOutputOrder(updatedFiles);
+    }, [listOutput, order_id]);
+
+    const handleRequestRevision = useCallback(async (fileIndex: number, comment: string) => {
+        const file = listOutput.files[fileIndex];
+        if (!file) return;
+
+        const updatedFiles = listOutput.files.map((f, index) =>
+            index === fileIndex ? { ...f, accepted: false, comment } : f
+        );
+        setListOutput(prev => ({ ...prev, files: updatedFiles }));
+        
+        await updateOutputOrder(updatedFiles);
+        setLocalStorage("listOutput", { ...listOutput, files: updatedFiles });
+
+        // Send email notification (parallel for speed)
+        const emailData = {
+            jobCode: listOutput.job_code || 'Unknown',
+            fileName: file.name || `File ${fileIndex}`,
+            fileUrl: file.url,
+            comment,
+            timestamp: formatTimestamp(),
+        };
+
+        // const [emailToSale, emailToSupport] = await Promise.all([
+        //     sendRevisionEmail({ ...emailData, salesEmail: listOutput.sale_email || "support@fotober.com" }),
+        //     sendRevisionEmail({ ...emailData, supportEmail: "support@fotober.com" }),
+        // ]);
+
+        // if (!emailToSale.success) console.error(`Failed to send email to sale: ${emailToSale.message}`);
+        // if (!emailToSupport.success) console.error(`Failed to send email to support: ${emailToSupport.message}`);
+        const [emailToSale] = await Promise.all([
+            sendRevisionEmail({ ...emailData, salesEmail: "grayna012@gmail.com" }),
+
+        ]);
+
+        if (!emailToSale.success) console.error(`Failed to send email to sale: ${emailToSale.message}`);
+    }, [listOutput]);
+
+    const navigateToInvoice = () => {
+
+        if (!listOutput.invoice_link || listOutput.invoice_link === null) {
+            alert("Invoice link not available ,please contact Sales");
+            window.location.href = "https://ops.fotober.com";
+
+        } else {
+            window.open(listOutput.invoice_link, "_blank");
+        }
+    };
+
+    // Download all files as ZIP from Dropbox
+    const downloadAllFiles = () => {
+        if (!listOutput.output_link) {
+            alert('No download link available');
+            return;
+        }
+        // Convert to download link by adding dl=1 - Dropbox will auto-zip the folder
+        const downloadLink = listOutput.output_link.replace('dl=0', 'dl=1');
+        window.location.href = downloadLink;
+    };
+    // if (isDevToolOpen) {
+    //     sessionStorage.clear();
+    //     return (
+    //         <div className="video-container">
+    //             <h1 style={{ color: "#ff6b6b", textAlign: "center" }}>
+    //                 DevTools is open. Access is blocked.
+    //             </h1>
+    //         </div>
+    //     );
+    // }
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
             <div className="flex flex-1 overflow-hidden">
@@ -204,44 +184,44 @@ export default function DropboxPreviewPage() {
                         {/* Tabs and Action Bar */}
                         <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                             <div className="flex items-center gap-2 bg-gray-200/50 p-1 rounded-full">
-                                <button
+                                <TabButton
+                                    active={activeTab === 'image'}
                                     onClick={() => setActiveTab('image')}
-                                    className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'image'
-                                        ? 'bg-[#0088cc] text-white shadow-sm'
-                                        : 'text-gray-600 hover:bg-white hover:shadow-sm'
-                                        }`}
-                                >
-                                    Image ({imageFiles.length})
-                                </button>
-                                <button
+                                    label={`Image (${imageFiles.length})`}
+                                />
+                                <TabButton
+                                    active={activeTab === 'video'}
                                     onClick={() => setActiveTab('video')}
-                                    className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'video'
-                                        ? 'bg-[#0088cc] text-white shadow-sm'
-                                        : 'text-gray-600 hover:bg-white hover:shadow-sm'
-                                        }`}
-                                >
-                                    Property Video ({videoFiles.length})
-                                </button>
+                                    label={`Property Video (${videoFiles.length})`}
+                                />
                             </div>
+                            <div className="flex gap-4">
 
-                            <button
-                                onClick={navigateToInvoice}
-                                className="bg-[#0088cc] text-white px-6 py-2.5 rounded hover:bg-[#0077b3] transition-colors font-medium text-sm shadow-sm"
-                            >
-                                Pay now and download
-                            </button>
+                                <button
+                                    onClick={navigateToInvoice}
+                                    className="bg-[#0088cc] text-white px-6 py-2.5 rounded hover:bg-[#0077b3] transition-colors font-medium text-sm shadow-sm"
+                                >
+                                    Pay now and download
+                                </button>
+                                {listOutput.output_link && (
+                                    <button
+                                        onClick={downloadAllFiles}
+                                        className="bg-[#0088cc] text-white px-6 py-2.5 rounded hover:bg-[#0077b3] transition-colors font-medium text-sm shadow-sm flex items-center"
+                                    >
+                                        Download All
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Content based on active tab */}
                         <div className="space-y-6">
                             {activeTab === 'image' && imageFiles.map((file, index) => (
                                 <ImageReviewCard
-                                    key={file.id}
+                                    key={index}
                                     index={index + 1}
                                     total={imageFiles.length}
                                     imageSrc={file.url}
-                                    imageName={file.name}
-                                    fileId={file.id}
                                     isAccepted={file.accepted}
                                     hasRevision={!!file.comment}
                                     feedback={file.comment}
@@ -252,12 +232,10 @@ export default function DropboxPreviewPage() {
 
                             {activeTab === 'video' && videoFiles.map((file, index) => (
                                 <VideoReviewCard
-                                    key={file.id}
+                                    key={index}
                                     index={index + 1}
                                     total={videoFiles.length}
                                     videoSrc={file.url}
-                                    videoName={file.name}
-                                    fileId={file.id}
                                     isAccepted={file.accepted}
                                     hasRevision={!!file.comment}
                                     feedback={file.comment}
@@ -272,9 +250,15 @@ export default function DropboxPreviewPage() {
                                 </div>
                             )}
 
-                            {activeTab === 'video' && videoFiles.length === 0 && (
+                            {activeTab === 'video' && videoFiles.length === 0 && !loading && (
                                 <div className="text-center py-12 text-gray-500">
                                     No videos available for review
+                                </div>
+                            )}
+
+                            {loading && (
+                                <div className="text-center py-12 text-gray-500">
+                                    Loading files...
                                 </div>
                             )}
                         </div>
@@ -284,10 +268,6 @@ export default function DropboxPreviewPage() {
         </div>
     );
 }
-
-// ============================================================================
-// Sub-components
-// ============================================================================
 
 function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
     return (

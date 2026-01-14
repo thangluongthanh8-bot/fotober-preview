@@ -15,7 +15,8 @@ export interface RevisionNotificationData {
   fileUrl: string;
   comment: string;
   customerEmail?: string;
-  salesEmail: string;
+  salesEmail?: string;
+  supportEmail?: string;
   timestamp: string;
 }
 

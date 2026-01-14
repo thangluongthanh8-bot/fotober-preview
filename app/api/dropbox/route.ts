@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // ============================================================================
-// Dropbox API Route - Server-side token refresh
+// Dropbox API Route - Optimized for performance
 // ============================================================================
 
 const CONFIG = {
@@ -13,36 +13,39 @@ const CONFIG = {
   authUrl: 'https://api.dropboxapi.com/oauth2/token',
 };
 
-// Token cache (in-memory, will reset on server restart)
+// Token cache (in-memory)
 let cachedAccessToken: string | null = null;
 let tokenExpiresAt: number = 0;
 
+// Response cache for frequently accessed data
+const responseCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 async function getValidAccessToken(): Promise<string> {
-  // If using old-style permanent token
+  // Use legacy token if available
   if (!CONFIG.refreshToken && CONFIG.accessToken) {
-    console.log('[Dropbox API] Using legacy access token');
     return CONFIG.accessToken;
   }
 
-  // Check if cached token is still valid (with 5 min buffer)
+  // Return cached token if still valid (5 min buffer)
   const now = Date.now();
   if (cachedAccessToken && tokenExpiresAt > now + 5 * 60 * 1000) {
-    console.log('[Dropbox API] Using cached token');
     return cachedAccessToken;
   }
 
-  // Refresh the token
-  console.log('[Dropbox API] Refreshing access token...');
-
+  // Validate credentials before refresh
   if (!CONFIG.appKey || !CONFIG.appSecret || !CONFIG.refreshToken) {
     throw new Error('Missing Dropbox OAuth credentials');
   }
 
+  // Refresh token
   const response = await fetch(CONFIG.authUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: CONFIG.refreshToken,
@@ -53,20 +56,19 @@ async function getValidAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('[Dropbox API] Token refresh failed:', error);
-    throw new Error(`Failed to refresh token: ${error}`);
+    throw new Error(`Token refresh failed: ${error}`);
   }
 
   const data = await response.json();
   cachedAccessToken = data.access_token;
-  tokenExpiresAt = now + (data.expires_in * 1000);
+  tokenExpiresAt = now + data.expires_in * 1000;
 
-  console.log('[Dropbox API] Token refreshed, expires in', data.expires_in, 'seconds');
   return cachedAccessToken!;
 }
 
-async function dropboxPost(endpoint: string, body: object) {
+async function dropboxPost(endpoint: string, body: object): Promise<any> {
   const token = await getValidAccessToken();
+  
   const res = await fetch(`${CONFIG.apiUrl}${endpoint}`, {
     method: 'POST',
     headers: {
@@ -78,12 +80,12 @@ async function dropboxPost(endpoint: string, body: object) {
 
   const text = await res.text();
 
-  // If token expired during request, retry once
+  // Retry once if token expired mid-request
   if (!res.ok && text.includes('expired_access_token')) {
-    console.log('[Dropbox API] Token expired mid-request, refreshing...');
     cachedAccessToken = null;
     tokenExpiresAt = 0;
     const newToken = await getValidAccessToken();
+    
     const retryRes = await fetch(`${CONFIG.apiUrl}${endpoint}`, {
       method: 'POST',
       headers: {
@@ -92,6 +94,7 @@ async function dropboxPost(endpoint: string, body: object) {
       },
       body: JSON.stringify(body),
     });
+    
     const retryText = await retryRes.text();
     if (!retryRes.ok) throw new Error(retryText);
     return retryText ? JSON.parse(retryText) : {};
@@ -101,39 +104,86 @@ async function dropboxPost(endpoint: string, body: object) {
   return text ? JSON.parse(text) : {};
 }
 
+// Get from cache or fetch
+function getCached<T>(key: string): T | null {
+  const cached = responseCache.get(key);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data as T;
+  }
+  responseCache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any): void {
+  responseCache.set(key, { data, expiry: Date.now() + CACHE_TTL });
+}
+
 // ============================================================================
-// Route Handlers
+// Route Handler
 // ============================================================================
 
 export async function POST(request: NextRequest) {
   try {
     const { action, ...params } = await request.json();
 
+    // Early validation
+    if (!action) {
+      return NextResponse.json({ success: false, error: 'Missing action' }, { status: 400 });
+    }
+
     switch (action) {
+      // Get folder info with caching
       case 'get_folder_info': {
-        const result = await dropboxPost('/sharing/get_shared_link_metadata', { url: params.url });
+        if (!params.url) {
+          return NextResponse.json({ success: false, error: 'Missing URL' }, { status: 400 });
+        }
+        
+        const cacheKey = `folder_info:${params.url}`;
+        let result = getCached<any>(cacheKey);
+        
+        if (!result) {
+          result = await dropboxPost('/sharing/get_shared_link_metadata', { url: params.url });
+          setCache(cacheKey, result);
+        }
+        
         return NextResponse.json({ success: true, data: { folderName: result.name } });
       }
 
+      // List folders
       case 'list_folders': {
         const result = await dropboxPost('/sharing/list_folders', { limit: 100 });
         return NextResponse.json({ success: true, data: result.entries || [] });
       }
 
+      // Mount folder
       case 'mount_folder': {
+        if (!params.id) {
+          return NextResponse.json({ success: false, error: 'Missing folder ID' }, { status: 400 });
+        }
         const result = await dropboxPost('/sharing/mount_folder', { shared_folder_id: params.id });
         return NextResponse.json({ success: true, data: { path: result.path_lower } });
       }
 
+      // List files - optimized with higher limit
       case 'list_files': {
-        const files: any[] = [];
-        let cursor = '';
-        let hasMore = true;
+        if (!params.path) {
+          return NextResponse.json({ success: false, error: 'Missing path' }, { status: 400 });
+        }
 
-        const first = await dropboxPost('/files/list_folder', { path: params.path, recursive: true });
+        const files: any[] = [];
+        
+        // Request more items per batch for fewer round trips
+        const first = await dropboxPost('/files/list_folder', { 
+          path: params.path, 
+          recursive: true,
+          limit: 2000,  // Max allowed by Dropbox
+        });
+        
         files.push(...first.entries.filter((e: any) => e['.tag'] === 'file'));
-        hasMore = first.has_more;
-        cursor = first.cursor;
+
+        // Continue pagination if needed
+        let hasMore = first.has_more;
+        let cursor = first.cursor;
 
         while (hasMore) {
           const more = await dropboxPost('/files/list_folder/continue', { cursor });
@@ -145,7 +195,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, data: files });
       }
 
+      // Create link with fallback
       case 'create_link': {
+        if (!params.path) {
+          return NextResponse.json({ success: false, error: 'Missing path' }, { status: 400 });
+        }
+
         try {
           const result = await dropboxPost('/sharing/create_shared_link_with_settings', {
             path: params.path,
@@ -153,6 +208,7 @@ export async function POST(request: NextRequest) {
           });
           return NextResponse.json({ success: true, data: { url: result.url } });
         } catch (e: any) {
+          // If link already exists, get existing one
           if (e.message.includes('shared_link_already_exists')) {
             const existing = await dropboxPost('/sharing/list_shared_links', {
               path: params.path,
@@ -166,14 +222,23 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Get account email
       case 'get_account_email': {
-        const token = await getValidAccessToken();
-        const res = await fetch(`${CONFIG.apiUrl}/users/get_current_account`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        return NextResponse.json({ success: true, data: { email: data.email } });
+        const cacheKey = 'account_email';
+        let email = getCached<string>(cacheKey);
+        
+        if (!email) {
+          const token = await getValidAccessToken();
+          const res = await fetch(`${CONFIG.apiUrl}/users/get_current_account`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          email = data.email;
+          setCache(cacheKey, email);
+        }
+        
+        return NextResponse.json({ success: true, data: { email } });
       }
 
       default:

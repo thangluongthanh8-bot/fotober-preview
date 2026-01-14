@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   title: "Fotober",
   description: "Professional Photo & Video Editing Services",
   icons: {
-    icon: "/logo.webp",
-    shortcut: "/logo.webp",
-    apple: "/logo.webp",
+    icon: "/Asset 1.png",
+    shortcut: "/Asset 1.png",
+    apple: "/Asset 1.png",
   },
 };
 

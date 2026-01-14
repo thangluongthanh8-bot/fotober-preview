@@ -8,21 +8,17 @@ interface VideoReviewCardProps {
   index: number;
   total: number;
   videoSrc: string;
-  videoName?: string;
-  fileId: string;
   isAccepted?: boolean;
   hasRevision?: boolean;
   feedback?: string;
-  onAccept?: (fileId: string) => Promise<void>;
-  onRequestRevision?: (fileId: string, comment: string) => Promise<void>;
+  onAccept?: (index: number) => Promise<void>;
+  onRequestRevision?: (index: number, comment: string) => Promise<void>;
 }
 
 export default function VideoReviewCard({
   index,
   total,
   videoSrc,
-  videoName,
-  fileId,
   isAccepted = false,
   hasRevision = false,
   feedback,
@@ -30,6 +26,7 @@ export default function VideoReviewCard({
   onRequestRevision,
 }: VideoReviewCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   // Revision form state
   const [showRevisionInput, setShowRevisionInput] = useState(false);
@@ -49,7 +46,7 @@ export default function VideoReviewCard({
     setIsSubmitting(true);
     try {
       if (onAccept) {
-        await onAccept(fileId);
+        await onAccept(index - 1);
       }
       setActionStatus('accepted');
       setShowRevisionInput(false);
@@ -71,7 +68,7 @@ export default function VideoReviewCard({
     setIsSubmitting(true);
     try {
       if (onRequestRevision) {
-        await onRequestRevision(fileId, revisionComment.trim());
+        await onRequestRevision(index - 1, revisionComment.trim());
       }
       setActionStatus('revision');
       setShowRevisionInput(false);
@@ -102,11 +99,6 @@ export default function VideoReviewCard({
         <div className="flex-1 flex flex-col">
           <div className="mb-4">
             <h3 className="text-gray-600 font-medium">Video {index} of {total}</h3>
-            {videoName && (
-              <p className="text-sm text-gray-400 mt-1 truncate" title={videoName}>
-                {videoName}
-              </p>
-            )}
           </div>
 
           <div className="flex flex-wrap gap-3 mb-6">
@@ -235,7 +227,7 @@ export default function VideoReviewCard({
                 src={videoSrc}
                 controls
                 autoPlay
-                controlsList="nodownload noplaybackrate"
+                controlsList="nodownload noplaybackrate "
                 disablePictureInPicture
                 onContextMenu={(e) => e.preventDefault()}
                 className="absolute inset-0 w-full h-full object-contain"

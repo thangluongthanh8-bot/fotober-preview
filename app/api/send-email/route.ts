@@ -181,33 +181,42 @@ async function sendViaGmailSMTP(data: RevisionNotificationData): Promise<{ succe
 
 export async function POST(request: NextRequest) {
   try {
-    const data: RevisionNotificationData = await request.json();
-
+    const rawData = await request.json();
+    
+    // Get recipient email - accept either salesEmail or supportEmail
+    const recipientEmail = rawData.salesEmail || rawData.supportEmail;
+    
     // Validate required fields
-    if (!data.salesEmail || !data.comment || !data.fileName) {
+    if (!recipientEmail || !rawData.comment || !rawData.fileName) {
       return NextResponse.json(
-        { error: 'Missing required fields: salesEmail, comment, fileName' },
+        { error: 'Missing required fields: salesEmail/supportEmail, comment, fileName' },
         { status: 400 }
       );
     }
+
+    // Normalize data to use salesEmail for the sender functions
+    const data: RevisionNotificationData = {
+      ...rawData,
+      salesEmail: recipientEmail,
+    };
 
     // Try sending email with priority order
     let result: { success: boolean; message: string; emailId?: string };
 
     // Priority 1: Gmail SMTP
-    // if (SMTP_USER && SMTP_PASS) {
-    //   try {
-    //     console.log('[Email API] Attempting Gmail SMTP...');
-    //     result = await sendViaGmailSMTP(data);
-    //     return NextResponse.json(result);
-    //   } catch (err) {
-    //     console.error('[Email API] Gmail SMTP failed:', err);
-    //     return NextResponse.json(
-    //       { error: `Email failed: ${err instanceof Error ? err.message : 'Unknown error'}` },
-    //       { status: 500 }
-    //     );
-    //   }
-    // }
+    if (SMTP_USER && SMTP_PASS) {
+      try {
+        console.log('[Email API] Attempting Gmail SMTP...');
+        result = await sendViaGmailSMTP(data);
+        return NextResponse.json(result);
+      } catch (err) {
+        console.error('[Email API] Gmail SMTP failed:', err);
+        return NextResponse.json(
+          { error: `Email failed: ${err instanceof Error ? err.message : 'Unknown error'}` },
+          { status: 500 }
+        );
+      }
+    }
     // Priority 2: Resend API
     if (RESEND_API_KEY) {
       try {

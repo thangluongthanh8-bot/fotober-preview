@@ -1,29 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, RotateCcw, Eye, X, ZoomIn, ZoomOut, Download, Send, Loader2 } from 'lucide-react';
+import { Check, RotateCcw, Eye, X, ZoomIn, ZoomOut, Send, Loader2 } from 'lucide-react';
 
 interface ImageReviewCardProps {
     index: number;
     total: number;
     imageSrc: string;
-    imageName?: string;
-    fileId: string;
     isAccepted?: boolean;
     hasRevision?: boolean;
     feedback?: string;
     jobCode?: string;
     salesEmail?: string;
-    onAccept?: (fileId: string) => Promise<void>;
-    onRequestRevision?: (fileId: string, comment: string) => Promise<void>;
+    onAccept?: (index: number) => Promise<void>;
+    onRequestRevision?: (index: number, comment: string) => Promise<void>;
 }
 
 export default function ImageReviewCard({
     index,
     total,
     imageSrc,
-    imageName,
-    fileId,
     isAccepted = false,
     hasRevision = false,
     feedback,
@@ -56,7 +52,7 @@ export default function ImageReviewCard({
         setIsSubmitting(true);
         try {
             if (onAccept) {
-                await onAccept(fileId);
+                await onAccept(index - 1);
             }
             setActionStatus('accepted');
             setShowRevisionInput(false);
@@ -78,7 +74,7 @@ export default function ImageReviewCard({
         setIsSubmitting(true);
         try {
             if (onRequestRevision) {
-                await onRequestRevision(fileId, revisionComment.trim());
+                await onRequestRevision(index - 1, revisionComment.trim());
             }
             setActionStatus('revision');
             setShowRevisionInput(false);
@@ -105,12 +101,11 @@ export default function ImageReviewCard({
                     {imageError ? (
                         <div className="text-gray-400 text-center p-8">
                             <p>Unable to load image</p>
-                            <p className="text-sm mt-2">{imageName}</p>
                         </div>
                     ) : (
                         <img
                             src={imageSrc}
-                            alt={imageName || `Image ${index}`}
+                            alt={`Image ${index}`}
                             className="max-w-full max-h-full object-contain"
                             onError={() => setImageError(true)}
                         />
@@ -123,11 +118,6 @@ export default function ImageReviewCard({
                         <h3 className="text-gray-600 font-medium">
                             Image {index} of {total}
                         </h3>
-                        {imageName && (
-                            <p className="text-sm text-gray-400 mt-1 truncate" title={imageName}>
-                                {imageName}
-                            </p>
-                        )}
                     </div>
 
                     <div className="flex flex-wrap gap-3 mb-6">
@@ -275,15 +265,7 @@ export default function ImageReviewCard({
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <a
-                                    href={imageSrc}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 text-white hover:bg-white/20 rounded transition-all"
-                                    title="Download"
-                                >
-                                    <Download size={20} />
-                                </a>
+
                                 <button
                                     onClick={() => setIsModalOpen(false)}
                                     className="p-2 text-white rounded hover:bg-white/20 transition-all"
@@ -297,7 +279,7 @@ export default function ImageReviewCard({
                         <div className="flex-1 overflow-auto flex items-center justify-center p-4">
                             <img
                                 src={imageSrc}
-                                alt={imageName || `Image ${index}`}
+                                alt={`Image ${index}`}
                                 className="transition-transform duration-200"
                                 style={{
                                     transform: `scale(${zoom})`,
