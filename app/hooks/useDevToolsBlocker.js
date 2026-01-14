@@ -1,49 +1,103 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 /**
- * Hook này chịu TRÁCH NHIỆM DUY NHẤT:
- * Phát hiện DevTools và trả về trạng thái [isOpen]
+ * Hook phát hiện và chặn DevTools
+ * Kết hợp nhiều phương pháp: console trick, window size, debugger, keyboard
  */
 export function useDevToolsBlocker() {
     const [isOpen, setIsOpen] = useState(false);
-    const initialSize = useRef({
-        width: window.outerWidth,
-        height: window.outerHeight,
-    });
+    const threshold = 160;
+    const emitLimit = useRef(false);
 
-    const onDevToolsOpen = useCallback(() => {   
-        
-        setIsOpen(true);
-    }, []); 
-
-    useEffect(() => {
-        class DevToolsChecker extends Error {
-            toString() { return ""; }
-            get message() { 
-                onDevToolsOpen();
-                return "";
-            }
+    const onDevToolsOpen = useCallback(() => {
+        if (!emitLimit.current) {
+            emitLimit.current = true;
+            setIsOpen(true);
+            // Clear sensitive data
+            sessionStorage.clear();
+            localStorage.removeItem("listOutput");
         }
-        console.log(new DevToolsChecker());
-    }, [onDevToolsOpen]);
+    }, []);
 
     useEffect(() => {
-        const handleResize = () => {
-            if (isOpen) return;
+        // Method 1: Console trick (khi DevTools mở, console.log sẽ trigger getter)
+        const element = new Image();
+        Object.defineProperty(element, 'id', {
+            get: function () {
+                onDevToolsOpen();
+                return '';
+            }
+        });
 
-            const newWidth = window.outerWidth;
-            const newHeight = window.outerHeight;
-            if (
-                Math.abs(newWidth - initialSize.current.width) > 100 ||
-                Math.abs(newHeight - initialSize.current.height) > 100
-            ) {
+        // Check periodically
+        const consoleCheck = setInterval(() => {
+            console.log('%c', element);
+            console.clear();
+        }, 1000);
+
+        // Method 2: Debugger statement (sẽ pause nếu DevTools mở)
+        const debuggerCheck = setInterval(() => {
+            const start = performance.now();
+            debugger;
+            const end = performance.now();
+            // Nếu debugger bị pause > 100ms thì DevTools đang mở
+            if (end - start > 100) {
+                onDevToolsOpen();
+            }
+        }, 1000);
+
+        // Method 3: Window size difference
+        const checkWindowSize = () => {
+            const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+            const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+            if (widthThreshold || heightThreshold) {
                 onDevToolsOpen();
             }
         };
 
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
-    }, [initialSize]); // Chạy lại nếu isOpen thay đổi
+        const resizeCheck = setInterval(checkWindowSize, 500);
+        window.addEventListener('resize', checkWindowSize);
+
+        // Method 4: Block keyboard shortcuts
+        const handleKeyDown = (e) => {
+            // F12
+            if (e.key === 'F12') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            if (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            // Ctrl+U (View Source)
+            if (e.ctrlKey && e.key.toUpperCase() === 'U') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        };
+
+        // Method 5: Block right click
+        const handleContextMenu = (e) => {
+            e.preventDefault();
+            return false;
+        };
+
+        document.addEventListener('keydown', handleKeyDown, true);
+        document.addEventListener('contextmenu', handleContextMenu);
+
+        return () => {
+            clearInterval(consoleCheck);
+            clearInterval(debuggerCheck);
+            clearInterval(resizeCheck);
+            window.removeEventListener('resize', checkWindowSize);
+            document.removeEventListener('keydown', handleKeyDown, true);
+            document.removeEventListener('contextmenu', handleContextMenu);
+        };
+    }, [onDevToolsOpen]);
 
     return { isDevToolOpen: isOpen };
 }

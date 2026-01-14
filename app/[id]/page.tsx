@@ -23,17 +23,17 @@ export default function DropboxPreviewPage() {
     const imageFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'image') || [];
     const videoFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'video') || [];
 
-    const [innerWidth, setInnerWidth] = useState([window.outerWidth, window.outerHeight]);
+    // DevTools blocker
     // const { isDevToolOpen } = useDevToolsBlocker();
 
-    // usePageVisibility();
-    useEffect(() => {
+    // Page visibility - chỉ enable khi có video files
+    // const { showWarning, dismissWarning, remainingWarnings } = usePageVisibility(videoFiles.length > 0);
 
+    useEffect(() => {
         const localOutput = getLocalStorage("listOutput");
         if (localOutput?.job_code === order_id && localOutput.files?.length > 0) {
             setListOutput(localOutput);
         } else {
-
             fetchOutputOrder();
         }
     }, [order_id]);
@@ -50,7 +50,8 @@ export default function DropboxPreviewPage() {
                 setListOutput(response);
                 setLocalStorage("listOutput", response);
             }
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Failed to fetch output order:", error);
         }
     };
@@ -101,7 +102,7 @@ export default function DropboxPreviewPage() {
             index === fileIndex ? { ...f, accepted: false, comment } : f
         );
         setListOutput(prev => ({ ...prev, files: updatedFiles }));
-        
+
         await updateOutputOrder(updatedFiles);
         setLocalStorage("listOutput", { ...listOutput, files: updatedFiles });
 
@@ -150,18 +151,71 @@ export default function DropboxPreviewPage() {
         const downloadLink = listOutput.output_link.replace('dl=0', 'dl=1');
         window.location.href = downloadLink;
     };
+    // Block access if DevTools is open
     // if (isDevToolOpen) {
-    //     sessionStorage.clear();
     //     return (
-    //         <div className="video-container">
-    //             <h1 style={{ color: "#ff6b6b", textAlign: "center" }}>
-    //                 DevTools is open. Access is blocked.
-    //             </h1>
+    //         <div className="min-h-screen bg-red-50 flex items-center justify-center p-6">
+    //             <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md text-center border-2 border-red-500">
+    //                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    //                     <span className="text-4xl">🚫</span>
+    //                 </div>
+    //                 <h1 className="text-2xl font-bold text-red-600 mb-3">Access Blocked</h1>
+    //                 <p className="text-gray-600 mb-4">
+    //                     Developer Tools has been detected. For security reasons, access to this content is blocked.
+    //                 </p>
+    //                 <p className="text-sm text-gray-500">
+    //                     Please close DevTools and refresh the page to continue.
+    //                 </p>
+    //                 <button
+    //                     onClick={() => window.location.reload()}
+    //                     className="mt-6 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+    //                 >
+    //                     Refresh Page
+    //                 </button>
+    //             </div>
     //         </div>
     //     );
     // }
+
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
+        <div className="min-h-screen bg-gray-100 flex flex-col font-sans relative">
+            {/* Loading Overlay */}
+            {loading && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-8 shadow-2xl flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-[#0088cc] border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-gray-700 font-medium">Good things take time. Your files are on the way!</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Page Visibility Warning Overlay */}
+            {/* {showWarning && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-8 shadow-2xl max-w-md text-center">
+                        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span className="text-4xl">⚠️</span>
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 mb-3">Stay on this page</h2>
+                        <p className="text-gray-600 mb-4">
+                            Please do not leave this tab while reviewing videos.
+                            Leaving may cause you to lose your progress.
+                        </p>
+                        {remainingWarnings > 0 && (
+                            <p className="text-sm text-orange-600 mb-4">
+                                Warning: {remainingWarnings} attempts remaining before page refreshes.
+                            </p>
+                        )}
+                        <button
+                            onClick={dismissWarning}
+                            className="px-6 py-2.5 bg-[#0088cc] text-white rounded-lg hover:bg-[#0077b3] transition-colors font-medium"
+                        >
+                            I understand, continue
+                        </button>
+                    </div>
+                </div>
+            )} */}
+
             <div className="flex flex-1 overflow-hidden">
                 <main className="flex-1 overflow-y-auto p-6 md:p-8">
                     <div className="max-w-6xl mx-auto">

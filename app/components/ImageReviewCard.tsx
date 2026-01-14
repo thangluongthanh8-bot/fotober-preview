@@ -237,7 +237,7 @@ export default function ImageReviewCard({
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Control Bar */}
-                        <div className="flex items-center justify-between p-4 bg-black/50 border-b border-white/10">
+                        {/* <div className="flex items-center justify-between p-4 bg-black/50 border-b border-white/10">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleZoomOut}
@@ -273,7 +273,7 @@ export default function ImageReviewCard({
                                     <X size={24} />
                                 </button>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Image Container */}
                         <div className="flex-1 overflow-auto flex items-center justify-center p-4">
