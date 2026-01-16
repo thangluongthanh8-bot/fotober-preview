@@ -24,10 +24,10 @@ export default function DropboxPreviewPage() {
     const videoFiles = listOutput?.files?.filter(f => f.type.toLowerCase() === 'video') || [];
 
     // DevTools blocker
-    // const { isDevToolOpen } = useDevToolsBlocker();
+    const { isDevToolOpen } = useDevToolsBlocker();
 
-    // Page visibility - chỉ enable khi có video files
-    // const { showWarning, dismissWarning, remainingWarnings } = usePageVisibility(videoFiles.length > 0);
+    // Page visibility - chỉ enable khi đang ở tab video
+    usePageVisibility(activeTab === 'video');
 
     useEffect(() => {
         const localOutput = getLocalStorage("listOutput");

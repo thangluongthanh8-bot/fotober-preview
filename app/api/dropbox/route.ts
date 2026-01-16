@@ -241,6 +241,82 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, data: { email } });
       }
 
+      // Get file preview/thumbnail from shared link
+      case 'get_preview': {
+        if (!params.url || !params.path) {
+          return NextResponse.json({ success: false, error: 'Missing url or path' }, { status: 400 });
+        }
+
+        const token = await getValidAccessToken();
+        
+        // Use get_shared_link_file to get the file content/preview
+        const res = await fetch('https://content.dropboxapi.com/2/sharing/get_shared_link_file', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Dropbox-API-Arg': JSON.stringify({
+              url: params.url,
+              path: params.path,
+            }),
+          },
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          return NextResponse.json({ success: false, error: errorText }, { status: res.status });
+        }
+
+        // Get file as blob and convert to base64
+        const blob = await res.blob();
+        const buffer = await blob.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const mimeType = blob.type || 'application/octet-stream';
+        
+        return NextResponse.json({ 
+          success: true, 
+          previewUrl: `data:${mimeType};base64,${base64}`
+        });
+      }
+
+      // Get thumbnail (for images only, returns smaller preview)
+      case 'get_thumbnail': {
+        if (!params.url || !params.path) {
+          return NextResponse.json({ success: false, error: 'Missing url or path' }, { status: 400 });
+        }
+
+        const token = await getValidAccessToken();
+        
+        const res = await fetch('https://content.dropboxapi.com/2/files/get_thumbnail_v2', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Dropbox-API-Arg': JSON.stringify({
+              resource: {
+                '.tag': 'link',
+                url: params.url,
+                path: params.path,
+              },
+              format: 'jpeg',
+              size: 'w256h256',
+            }),
+          },
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          return NextResponse.json({ success: false, error: errorText }, { status: res.status });
+        }
+
+        const blob = await res.blob();
+        const buffer = await blob.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        
+        return NextResponse.json({ 
+          success: true, 
+          thumbnailUrl: `data:image/jpeg;base64,${base64}`
+        });
+      }
+
       default:
         return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
     }

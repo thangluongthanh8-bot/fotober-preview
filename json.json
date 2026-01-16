@@ -1,0 +1,45 @@
+// {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/g2wp3aopk6e1cxabls53g/VIDEO-1-rev-1.mp4?rlkey=abq7q0o8ftm5eqht5a3xf6435&dl=0",
+//       "type": "video",
+//       "comment": "abc",
+//       "accepted": true
+//     },
+//      {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/g0utt5gq8mdo9li9hg4mm/VIDEO-3-rev-1.mp4?rlkey=w1f6vr9fwuf4v5yd3r5xp4ilb&dl=0",
+//       "type": "video",
+//       "comment": "",
+//       "accepted": null
+//     },
+//      {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/nzbd0ohoh8pr7rhqjz4ul/VIDEO-4-rev-1.mp4?rlkey=4xqgbb9egx17ht0hj6iecos49&dl=0",
+//       "type": "video",
+//       "comment": "",
+//       "accepted": null
+//     },
+//      {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/reooxxb6zep5ir4rahw62/VIDEO-2-rev-1.mp4?rlkey=2y9jo78x6sb5k6qfws4ssp0ha&dl=0",
+//       "type": "video",
+//       "comment": "",
+//       "accepted": null
+//     },
+    
+//      {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/7dicg6zx72s0t6kd541n2/VIDEO-5-rev-1.mp4?rlkey=n0h6a2vfrugl2uitdw9l6gnsf&dl=0",
+//       "type": "video",
+//       "comment": "",
+//       "accepted": null
+//     },
+    
+//      {
+//       "url": "https://dl.dropboxusercontent.com/scl/fi/97bwraplke8uckevp8vda/VIDEO-6-rev-1.mp4?rlkey=wj162m6qiblpcbte0lxrnjp19&dl=0",
+//       "type": "video",
+//       "comment": "",
+//       "accepted": null
+//     }
+//   ]
+
+
+
+curl -X POST https://content.dropboxapi.com/2/sharing/get_shared_link_file \
+    --header "Authorization: Basic N29tdjluMDR5NTA3cHVzOmVjM3V0dTg2bmJ0bTJnbg==" \
+    --header "Dropbox-API-Arg: {\"path\":\"/VIDEO+1+rev+1.mp4\",\"url\":\"https://www.dropbox.com/s/2sn712vy1ovegw8/VIDEO+1+rev+1.mp4?dl=0\"}"
